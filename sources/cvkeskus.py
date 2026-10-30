@@ -1,10 +1,13 @@
 """cvkeskus.ee - HTML search results."""
+import logging
 import re
 from datetime import date, timedelta
 
 from bs4 import BeautifulSoup
 
 from . import clean, session
+
+log = logging.getLogger(__name__)
 
 NAME = "CVKeskus"
 BASE = "https://www.cvkeskus.ee"
@@ -73,5 +76,5 @@ def fetch():
                     seen.add(j["id"])
                     out.append(j)
         except Exception as e:
-            print(f"[{NAME}] keyword {kw!r} failed: {e}")
+            log.warning("[%s] keyword %r failed: %s", NAME, kw, e)
     return out

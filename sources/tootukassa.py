@@ -2,7 +2,11 @@
 
 Fetches everything published in the last DAYS days and filters locally, because its own
 keyword search is Estonian-only and fuzzy."""
+import logging
+
 from . import session
+
+log = logging.getLogger(__name__)
 
 NAME = "Töötukassa"
 GQL = "https://www.tootukassa.ee/web/graphql"
@@ -62,7 +66,7 @@ def fetch():
             r.raise_for_status()
             data = r.json()["data"]["jobOffersQuery"]
         except Exception as e:
-            print(f"[{NAME}] page failed: {e}")
+            log.warning("[%s] page failed: %s", NAME, e)
             break
         out.extend(_norm(edge) for edge in data["edges"])
         if not data["pageInfo"]["hasNextPage"]:

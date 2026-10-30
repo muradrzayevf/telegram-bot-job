@@ -1,9 +1,12 @@
 """LinkedIn - public (guest) job search, no login. Rate limited, so few keywords and backoff."""
+import logging
 import time
 
 from bs4 import BeautifulSoup
 
 from . import clean, session
+
+log = logging.getLogger(__name__)
 
 NAME = "LinkedIn"
 SEARCH = "https://www.linkedin.com/jobs/search"
@@ -64,6 +67,6 @@ def fetch():
                     seen.add(j["id"])
                     out.append(j)
         except Exception as e:
-            print(f"[{NAME}] keyword {kw!r} failed: {e}")
+            log.warning("[%s] keyword %r failed: %s", NAME, kw, e)
         time.sleep(2)
     return out

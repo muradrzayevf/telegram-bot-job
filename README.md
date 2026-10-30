@@ -33,6 +33,34 @@ Sources:
 Task Scheduler → Create Task → trigger "At log on" or every 30 min → action:
 `python C:\...\tg_bot\bot.py --once`. Or just keep `run_bot.bat` running.
 
+### Run on a Linux VPS (systemd)
+The bot needs no open ports and runs happily on the smallest VPS plan.
+
+```
+sudo apt install -y git python3 python3-venv
+git clone https://github.com/muradrzayevf/telegram-bot-job.git /opt/jobbot
+cd /opt/jobbot
+cp .env.example .env && nano .env        # token + chat id
+sudo bash deploy/install.sh
+```
+
+`deploy/install.sh` creates a virtualenv, a `jobbot` system user, sends a test message, offers
+to mark today's listings as seen (so the first run doesn't flood you; `INIT=1` or `INIT=0`
+answers that without asking) and installs
+`deploy/jobbot.service` as a hardened systemd unit that starts on boot and restarts on
+failure. Re-run it any time to refresh dependencies. Afterwards:
+
+```
+journalctl -u jobbot -f                  # live log
+sudo systemctl restart jobbot            # after `git pull` or editing .env
+sudo systemctl disable --now jobbot      # stop for good
+```
+
+To get your chat id on the server: `sudo -u jobbot .venv/bin/python bot.py --get-chat-id`.
+
+Note: LinkedIn's guest search often rate-limits data-centre IPs. If it keeps returning
+0 listings you will get a ⚠️ message; remove `linkedin` from `SOURCES` in `bot.py` if so.
+
 ## Message format
 
 ```

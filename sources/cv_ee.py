@@ -1,5 +1,9 @@
 """cv.ee - the JSON search API the site itself uses."""
+import logging
+
 from . import session
+
+log = logging.getLogger(__name__)
 
 NAME = "cv.ee"
 API = "https://www.cv.ee/api/v1/vacancy-search-service/search"
@@ -58,5 +62,5 @@ def fetch():
                 seen.add(v["id"])
                 out.append(_norm(v, assume_it, assume_internship))
         except Exception as e:  # one failing query must not kill the rest
-            print(f"[{NAME}] query {params} failed: {e}")
+            log.warning("[%s] query %s failed: %s", NAME, params, e)
     return out
