@@ -4,6 +4,7 @@ from . import session
 NAME = "cv.ee"
 API = "https://www.cv.ee/api/v1/vacancy-search-service/search"
 KEYWORDS = ["cyber", "security", "küber", "infoturbe", "SOC analyst", "penetration", "praktika IT", "internship"]
+ESTONIA = "1"  # countryId
 
 
 def _query(s, params):
@@ -15,18 +16,28 @@ def _query(s, params):
     return r.json().get("vacancies", [])
 
 
+def _location(v):
+    # The API only gives numeric townId/countyId, so the town itself is not available.
+    work = (v.get("remoteWorkType") or "").upper()
+    if "REMOTE" in work:
+        return "Eesti · kaugtöö"
+    if "HYBRID" in work or v.get("remoteWork"):
+        return "Eesti · hübriid"
+    return "Eesti"
+
+
 def _norm(v, assume_it, assume_internship=False):
     return {
-        "assume_internship": assume_internship,
         "id": str(v["id"]),
         "title": v.get("positionTitle") or "",
         "company": v.get("employerName") or "",
-        "location": "Eesti" + (" · remote/hybrid" if v.get("remoteWork") else ""),
+        "location": _location(v),
         "url": f"https://www.cv.ee/et/vacancy/{v['id']}",
         "published": (v.get("publishDate") or "")[:10],
         "source": NAME,
         "extra": " ".join(v.get("keywords") or []),  # site tags only, not the description
         "assume_it": assume_it,
+        "assume_internship": assume_internship,
     }
 
 
@@ -40,7 +51,7 @@ def fetch():
     for params, assume_it, assume_internship in batches:
         try:
             for v in _query(s, params):
-                if str(v.get("countryId")) != "1":  # 1 = Estonia
+                if str(v.get("countryId")) != ESTONIA or v.get("id") is None:
                     continue
                 if v["id"] in seen:
                     continue

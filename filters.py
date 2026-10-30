@@ -1,11 +1,30 @@
-"""Keyword filters: is a vacancy IT / cybersecurity related, and is it an internship."""
+"""Keyword filters: is a vacancy IT / cybersecurity related, and is it an internship.
+
+Every list holds regular expressions matched case-insensitively against the vacancy title
+(IT patterns are also tried against the site's own tags in `extra`). Edit the lists to tune.
+"""
 import re
 
-# Physical security / guard jobs that contain "security"/"turva" but are not IT.
+# Hard exclusions. Physical security / guard jobs that contain "security" or "turva", and
+# engineering disciplines that are not IT. A title matching one of these is never sent.
 EXCLUDE = [
     r"turvat[öo]{1,2}taja", r"julgestust[öo]{1,2}taja", r"turvamees", r"valvur",
     r"security guard", r"security officer", r"охранник", r"turvakontrol",
     r"\bG4S\b", r"turvameeskond", r"objektivalvur", r"patrull",
+    r"\bhvac\b", r"mechanical engineer", r"mehaanikainsener", r"civil engineer", r"ehitusinsener",
+    r"electrical engineer", r"elektriinsener", r"structural engineer", r"process engineer",
+    r"production engineer", r"tootmisinsener", r"quality engineer", r"kvaliteediinsener",
+    r"keevitus", r"\bcnc\b",
+]
+
+# Soft exclusions. Roles that job sites file under IT, or that hit an IT keyword, but are
+# sales / finance / HR / teaching work rather than IT work ("B2B IT teenuste müügijuht",
+# "Tax Technology Manager"). Delete an entry if you do want those.
+NON_IT = [
+    r"m[üu]{1,2}gi", r"\bsales\b", r"account manager", r"treasury", r"\btax\b", r"raamatupida",
+    r"accountant", r"personali", r"\bhr\b", r"recruit", r"v[äa]rbami", r"turundus", r"marketing",
+    r"[õo]petaja", r"noorsoot[öo]{1,2}", r"juris", r"lawyer", r"legal counsel", r"klienditeenindaja",
+    r"customer service", r"copywriter",
 ]
 
 CYBER = [
@@ -21,8 +40,11 @@ CYBER = [
 ]
 
 IT = [
-    r"\bit\b", r"\bit-", r"infotehnoloog", r"informaatik", r"software", r"tarkvara", r"developer", r"arendaja",
-    r"programm", r"engineer", r"devops", r"\bsre\b", r"site reliability", r"cloud", r"pilve",
+    r"\bit\b", r"\bit-", r"infotehnoloog", r"informaatik", r"software", r"tarkvara", r"developer",
+    # "arendaja" only as a whole word or an IT compound: "Tarkvaraarendaja" yes, "Tootearendaja"
+    # (product developer in a textile factory) and "Kinnisvaraarendaja" (real estate) no.
+    r"(?<![a-zäöüõ])(vanem|noorem)?arendaja", r"(tarkvara|veebi|mobiili|rakendus\w*|s[üu]{1,2}steemi|liidese)arenda",
+    r"programmeer", r"engineer", r"devops", r"\bsre\b", r"site reliability", r"cloud", r"pilve",
     r"sysadmin", r"system[s]? admin", r"s[üu]{1,2}steemiadmin", r"v[õo]rguadmin", r"network", r"v[õo]rgu",
     r"data (engineer|scientist|analyst|architect)", r"andmeanal[üu]{1,2}tik", r"andmeteadlane", r"andmeinsener",
     r"machine learning", r"\bml\b", r"\bai\b", r"tehisintellekt", r"artificial intelligence",
@@ -46,35 +68,46 @@ INTERNSHIP = [
 ]
 
 
-def _any(patterns, text):
-    return any(re.search(p, text, re.IGNORECASE) for p in patterns)
+def _compile(patterns):
+    return [re.compile(p, re.IGNORECASE) for p in patterns]
+
+
+_EXCLUDE, _NON_IT, _CYBER, _IT, _INTERNSHIP = (_compile(x) for x in (EXCLUDE, NON_IT, CYBER, IT, INTERNSHIP))
+
+
+def _any(compiled, text):
+    return bool(text) and any(p.search(text) for p in compiled)
 
 
 def is_excluded(text: str) -> bool:
-    return _any(EXCLUDE, text)
+    return _any(_EXCLUDE, text)
+
+
+def is_non_it(text: str) -> bool:
+    return _any(_NON_IT, text)
 
 
 def is_cyber(text: str) -> bool:
-    return _any(CYBER, text) and not is_excluded(text)
+    return _any(_CYBER, text) and not is_excluded(text)
 
 
 def is_it(text: str) -> bool:
-    return (_any(IT, text) or _any(CYBER, text)) and not is_excluded(text)
+    return (_any(_IT, text) or _any(_CYBER, text)) and not is_excluded(text)
 
 
 def is_internship(text: str) -> bool:
-    return _any(INTERNSHIP, text)
+    return _any(_INTERNSHIP, text)
 
 
 def classify(title: str, extra: str = "", assume_it: bool = False, assume_internship: bool = False):
     """Return (keep, cyber, internship).
 
-    The title decides everything; `extra` (site keywords/tags) can only add an IT match.
-    Descriptions are deliberately not used for cyber/internship, they mention "security"
-    and "students" far too often."""
-    if is_excluded(title):
+    The title decides everything; `extra` (the site's own tags) can only add an IT match,
+    and `assume_it` / `assume_internship` carry the site's own categorisation. EXCLUDE and
+    NON_IT titles are dropped even when the site filed them under IT."""
+    if is_excluded(title) or is_non_it(title):
         return False, False, False
-    cyber = is_cyber(title)
-    keep = assume_it or is_it(title) or is_it(extra) or cyber
-    internship = assume_internship or is_internship(title)
+    cyber = _any(_CYBER, title)
+    keep = cyber or assume_it or _any(_IT, title) or is_it(extra)
+    internship = assume_internship or _any(_INTERNSHIP, title)
     return keep, cyber, internship
