@@ -1,13 +1,23 @@
 """LinkedIn - public (guest) job search, no login. Rate limited, so few keywords and backoff."""
+import logging
 import time
+
 from bs4 import BeautifulSoup
-from . import session
+
+from . import clean, session
+
+log = logging.getLogger(__name__)
 
 NAME = "LinkedIn"
 SEARCH = "https://www.linkedin.com/jobs/search"
 GUEST_API = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
 KEYWORDS = ["cyber security", "information security", "IT", "software engineer", "DevOps", "internship IT"]
 TIME_WINDOW = "r172800"  # last 48 hours
+
+
+def _text(card, selector):
+    el = card.select_one(selector)
+    return clean(el.get_text(" ", strip=True)) if el else ""
 
 
 def _parse(html):
@@ -18,17 +28,14 @@ def _parse(html):
         if "jobPosting" not in urn:
             continue
         jid = urn.rsplit(":", 1)[-1]
-        t = card.select_one(".base-search-card__title")
-        c = card.select_one(".base-search-card__subtitle")
-        l = card.select_one(".job-search-card__location")
-        d = card.select_one("time")
+        when = card.select_one("time")
         out.append({
             "id": jid,
-            "title": t.get_text(" ", strip=True) if t else "",
-            "company": c.get_text(" ", strip=True) if c else "",
-            "location": l.get_text(" ", strip=True) if l else "",
+            "title": _text(card, ".base-search-card__title"),
+            "company": _text(card, ".base-search-card__subtitle"),
+            "location": _text(card, ".job-search-card__location"),
             "url": f"https://www.linkedin.com/jobs/view/{jid}/",
-            "published": d.get("datetime", "") if d else "",
+            "published": (when.get("datetime", "") if when else "")[:10],
             "source": NAME, "extra": "", "assume_it": False,
         })
     return out
@@ -60,6 +67,6 @@ def fetch():
                     seen.add(j["id"])
                     out.append(j)
         except Exception as e:
-            print(f"[{NAME}] keyword {kw!r} failed: {e}")
+            log.warning("[%s] keyword %r failed: %s", NAME, kw, e)
         time.sleep(2)
     return out
