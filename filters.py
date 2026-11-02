@@ -67,12 +67,26 @@ INTERNSHIP = [
     r"стаж[её]р", r"стажировк", r"suvepraktika", r"summer intern", r"graduate program", r"apprentice",
 ]
 
+# Seniority markers in the title, used by ONLY_JUNIOR. A title with none of them is "unknown":
+# plenty of entry-level jobs are just called "Security Analyst".
+JUNIOR = [
+    r"\bjunior\b", r"\bjr\.?\b", r"noorem", r"entry[- ]level", r"\bgraduate\b", r"\bassociate\b",
+    r"\b(analyst|engineer|specialist|developer|consultant) i\b", r"младш", r"начинающ", r"algaja",
+    r"early career", r"\bnew grad",
+]
+SENIOR = [
+    r"\bsenior\b", r"\bsr\.?\b", r"\blead\b", r"\bhead\b", r"principal", r"\bstaff\b", r"chief",
+    r"director", r"manager", r"\bowner\b", r"architect", r"\bexpert\b", r"vanem", r"juht\b",
+    r"\b[üu]lem\b", r"\biii?\b", r"старш", r"ведущ", r"руководител", r"\bciso\b",
+]
+
 
 def _compile(patterns):
     return [re.compile(p, re.IGNORECASE) for p in patterns]
 
 
-_EXCLUDE, _NON_IT, _CYBER, _IT, _INTERNSHIP = (_compile(x) for x in (EXCLUDE, NON_IT, CYBER, IT, INTERNSHIP))
+_EXCLUDE, _NON_IT, _CYBER, _IT, _INTERNSHIP, _JUNIOR, _SENIOR = (
+    _compile(x) for x in (EXCLUDE, NON_IT, CYBER, IT, INTERNSHIP, JUNIOR, SENIOR))
 
 
 def _any(compiled, text):
@@ -97,6 +111,20 @@ def is_it(text: str) -> bool:
 
 def is_internship(text: str) -> bool:
     return _any(_INTERNSHIP, text)
+
+
+def seniority(title: str, assume_internship: bool = False) -> str:
+    """'intern', 'junior', 'senior' or 'unknown' (no marker in the title).
+
+    Internship wins over everything, then junior, so "Junior Security Analyst (Team Lead
+    support)" is junior while "Lead Security Analyst" is senior."""
+    if assume_internship or _any(_INTERNSHIP, title):
+        return "intern"
+    if _any(_JUNIOR, title):
+        return "junior"
+    if _any(_SENIOR, title):
+        return "senior"
+    return "unknown"
 
 
 def classify(title: str, extra: str = "", assume_it: bool = False, assume_internship: bool = False):

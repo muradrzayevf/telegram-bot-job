@@ -74,6 +74,7 @@ Security Analyst
 🔗 https://...
 ```
 Internships: `🎓 INTERNSHIP / PRAKTIKA` header and the **whole message in bold**.
+Junior titles: `🔐 Cybersecurity  ·  🌱 Junior` header.
 
 ## Tuning
 - `filters.py` – keyword lists. `IT`, `CYBER`, `INTERNSHIP` select; `EXCLUDE` drops guard jobs
@@ -81,6 +82,10 @@ Internships: `🎓 INTERNSHIP / PRAKTIKA` header and the **whole message in bold
   roles that sites file under IT ("B2B IT teenuste müügijuht", "Tax Technology Manager").
   Remove an entry from `NON_IT` if you do want those.
 - `ONLY_CYBER=1` in `.env` – only cybersecurity jobs.
+- `ONLY_JUNIOR=1` – only internships and junior titles (`JUNIOR` / `SENIOR` lists in `filters.py`
+  decide the level). Many entry-level jobs carry no level in the title ("Security Analyst");
+  set `JUNIOR_ALLOW_UNMARKED=1` to get those too while still dropping Senior / Lead / Manager.
+  Junior titles get a 🌱 marker in the message.
 - `MAX_PER_RUN`, `KEEP_SEEN_DAYS`, `SOURCE_ALERT_AFTER`, `LOG_LEVEL` – see `.env.example`.
 - `sources/*.py` – `KEYWORDS` searched on each site. To add a site, write `fetch()` returning
   the same dict shape (see `sources/__init__.py`) and add the module to `SOURCES` in `bot.py`.

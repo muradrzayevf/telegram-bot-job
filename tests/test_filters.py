@@ -1,6 +1,6 @@
 import unittest
 
-from filters import classify
+from filters import classify, seniority
 
 
 class ClassifyTests(unittest.TestCase):
@@ -54,6 +54,26 @@ class ClassifyTests(unittest.TestCase):
 
     def test_empty_title(self):
         self.assertEqual(classify(""), (False, False, False))
+
+
+class SeniorityTests(unittest.TestCase):
+    def test_levels(self):
+        cases = {
+            "intern": ["Küberturbe praktikant", "Security Intern", "Automation Engineer Trainee"],
+            "junior": ["Junior Security Analyst", "Noorem küberturbe spetsialist", "Software Engineer I - Fincrime",
+                       "Jr. SOC Analyst", "Associate Security Engineer", "Entry-level Penetration Tester"],
+            "senior": ["Senior Security Engineer", "Infoturbe lüli ülem", "Küberturbe tootejuht",
+                       "Security Analyst II", "Lead Engineer", "Information Security Manager", "Red Teaming Expert"],
+            "unknown": ["Security Engineer", "Security Analyst in SOC", "Küber- ja majanduskuritegude uurija"],
+        }
+        for level, titles in cases.items():
+            for t in titles:
+                self.assertEqual(seniority(t), level, t)
+
+    def test_internship_and_junior_win(self):
+        self.assertEqual(seniority("Junior Security Analyst (Team Lead support)"), "junior")
+        self.assertEqual(seniority("Senior Security Trainee"), "intern")
+        self.assertEqual(seniority("Anything", assume_internship=True), "intern")
 
 
 if __name__ == "__main__":

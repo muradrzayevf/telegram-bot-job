@@ -34,6 +34,8 @@ class RunOnceTests(unittest.TestCase):
             mock.patch.object(bot, "send", side_effect=self._send),
             mock.patch.object(bot.time, "sleep", lambda *_: None),
             mock.patch.object(bot, "ONLY_CYBER", False),
+            mock.patch.object(bot, "ONLY_JUNIOR", False),
+            mock.patch.object(bot, "JUNIOR_ALLOW_UNMARKED", False),
         ]
         for p in patches:
             p.start()
@@ -124,6 +126,27 @@ class RunOnceTests(unittest.TestCase):
         self.assertIn("INTERNSHIP", self.sent[0])
         self.assertIn("Security Analyst", self.sent[1])
         self.assertIn("Java Developer", self.sent[2])
+
+    def test_only_cyber_and_only_junior(self):
+        jobs = [job("cv.ee", 1, "Junior Security Analyst"), job("cv.ee", 2, "Security Engineer"),
+                job("cv.ee", 3, "Senior Security Engineer"), job("cv.ee", 4, "Küberturbe praktikant"),
+                job("cv.ee", 5, "Junior Java Developer")]
+        with mock.patch.object(bot, "ONLY_CYBER", True), mock.patch.object(bot, "ONLY_JUNIOR", True):
+            self.run_with(fake_source("cv.ee", jobs))
+        titles = [m.split("\n")[2] for m in self.sent]
+        self.assertEqual(len(self.sent), 2)
+        self.assertIn("Küberturbe praktikant", titles[0])          # internship first
+        self.assertIn("Junior Security Analyst", titles[1])
+        self.assertIn("🌱 Junior", self.sent[1])
+        self.assertNotIn("🌱 Junior", self.sent[0])
+
+    def test_only_junior_with_unmarked_titles(self):
+        jobs = [job("cv.ee", 1, "Security Engineer"), job("cv.ee", 2, "Senior Security Engineer")]
+        with mock.patch.object(bot, "ONLY_JUNIOR", True), mock.patch.object(bot, "JUNIOR_ALLOW_UNMARKED", True):
+            self.run_with(fake_source("cv.ee", jobs))
+        self.assertEqual(len(self.sent), 1)
+        self.assertIn("Security Engineer", self.sent[0])
+        self.assertNotIn("Senior", self.sent[0])
 
     def test_failing_source_does_not_stop_others(self):
         bad = fake_source("LinkedIn", error=RuntimeError("rate limited"))

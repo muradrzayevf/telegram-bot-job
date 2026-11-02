@@ -24,7 +24,7 @@ from pathlib import Path
 import requests
 
 from dedup import fingerprint
-from filters import classify
+from filters import classify, seniority
 from sources import cv_ee, cvkeskus, linkedin, tootukassa
 
 HERE = Path(__file__).resolve().parent
@@ -72,6 +72,8 @@ MAX_PER_RUN = _int_env("MAX_PER_RUN", 40)          # don't flood the chat on the
 KEEP_SEEN_DAYS = _int_env("KEEP_SEEN_DAYS", 90)
 SOURCE_ALERT_AFTER = _int_env("SOURCE_ALERT_AFTER", 3)  # 0 disables the "site broken" alerts
 ONLY_CYBER = os.environ.get("ONLY_CYBER", "0") == "1"
+ONLY_JUNIOR = os.environ.get("ONLY_JUNIOR", "0") == "1"            # only internships + junior titles
+JUNIOR_ALLOW_UNMARKED = os.environ.get("JUNIOR_ALLOW_UNMARKED", "0") == "1"  # ...plus titles with no level
 API = f"https://api.telegram.org/bot{TOKEN}"
 
 
@@ -138,9 +140,11 @@ def send(text):
     return FAILED
 
 
-def format_job(j, cyber, internship):
+def format_job(j, cyber, internship, junior=False):
     e = html.escape
     tag = "🔐 Cybersecurity" if cyber else "💻 IT"
+    if junior and not internship:
+        tag += "  ·  🌱 Junior"
     title = e(j["title"][:TITLE_MAX_LEN])
     # no nested <b> inside the all-bold internship message
     lines = [title if internship else f"<b>{title}</b>"]
@@ -224,6 +228,9 @@ def run_once(dry_run=False, init=False):
                                                j.get("assume_it", False), j.get("assume_internship", False))
             if not keep or (ONLY_CYBER and not cyber):
                 continue
+            level = seniority(j["title"], internship)
+            if ONLY_JUNIOR and not (level in ("intern", "junior") or (JUNIOR_ALLOW_UNMARKED and level == "unknown")):
+                continue
             fp = fingerprint(j)
             if fp and (fp in seen or fp in fingerprints_this_run):
                 seen[key] = now  # same vacancy already sent from another listing
@@ -231,7 +238,7 @@ def run_once(dry_run=False, init=False):
                 continue
             if fp:
                 fingerprints_this_run.add(fp)
-            new.append((j, cyber, internship, key, fp))
+            new.append((j, cyber, internship, level == "junior", key, fp))
 
     # internships first, then cyber, then the rest
     new.sort(key=lambda x: (not x[2], not x[1]))
@@ -250,8 +257,8 @@ def run_once(dry_run=False, init=False):
         return results
 
     sent = 0
-    for j, cyber, internship, key, fp in new[:MAX_PER_RUN]:
-        msg = format_job(j, cyber, internship)
+    for j, cyber, internship, junior, key, fp in new[:MAX_PER_RUN]:
+        msg = format_job(j, cyber, internship, junior)
         if dry_run:
             print("-" * 60)
             print(msg)
