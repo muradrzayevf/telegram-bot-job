@@ -1,0 +1,27 @@
+# systemd unit for the Estonia IT/cyber job watcher.
+# deploy/install.sh fills in __APP_DIR__ and __USER__ and installs it as jobbot.service.
+[Unit]
+Description=Estonia IT/cyber job watcher -> Telegram
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__APP_DIR__
+ExecStart=__APP_DIR__/.venv/bin/python bot.py
+Restart=always
+RestartSec=60
+Environment=PYTHONUNBUFFERED=1
+
+# Hardening: read-only system, the bot may only write seen.json in its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=__APP_DIR__
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
