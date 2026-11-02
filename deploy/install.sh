@@ -42,6 +42,9 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
 fi
 chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
 chmod 600 "$APP_DIR/.env"
+# the checkout is owned by the service user, so let root keep running `git pull` in it
+git config --global --get-all safe.directory 2>/dev/null | grep -qx "$APP_DIR" \
+    || git config --global --add safe.directory "$APP_DIR"
 
 echo "==> Checking the Telegram connection"
 sudo -u "$SERVICE_USER" "$APP_DIR/.venv/bin/python" "$APP_DIR/bot.py" --test
